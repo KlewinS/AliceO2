@@ -78,9 +78,9 @@ void createCRUSorterMapping()
 
             outfile.close();
             std::stringstream filename;
-            filename << "sorterMapping_part" << partition << "_fec";
+            filename << "sorterMapping_region" << partition*2+region << "_fec";
             filename << std::setw(2) << std::setfill('0') << fec;
-            filename << "_" << (region == 0 ? "l" : "h") << ".txt";
+            filename << ".txt";
             std::cout << "writing file " << filename.str() << std::endl;
             outfile.open(filename.str());
 

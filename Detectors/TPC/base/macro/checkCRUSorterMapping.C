@@ -36,7 +36,8 @@ void checkCRUSorterMapping(std::string basePath, int partition)
   std::cout << "####################################" << std::endl;
   std::cout << "## Checking partition " << partition << "           ##" << std::endl;
   std::cout << "##                                ##" << std::endl;
-  std::cout << "## Open files for FECs 0 to " << FECmax-1 << "    ##" << std::endl;
+  std::cout << "## Opening files for FECs 0 to " << FECmax-1 << " ##" << std::endl;
+  std::cout << "## of region " << partition*2 << " and " << (partition*2+1) << "              ##" << std::endl;
   std::cout << "####################################" << std::endl << std::endl;
 
   std::vector<std::ifstream> inFiles_l;
@@ -44,9 +45,9 @@ void checkCRUSorterMapping(std::string basePath, int partition)
   for (int fec = 0; fec < FECmax; ++fec) {
     std::stringstream fileToCheck;
     fileToCheck << basePath;
-    fileToCheck << "/mapping_part" << partition;
+    fileToCheck << "/mapping_region" << (partition*2);
     fileToCheck << "_fec" << std::setw(2) << std::setfill('0') << fec;
-    fileToCheck << "_l.txt";
+    fileToCheck << ".txt";
     inFiles_l.emplace_back(fileToCheck.str());
     if (!inFiles_l.back().is_open()) {
       std::cout << "Can't open file " << fileToCheck.str() << std::endl;
@@ -57,9 +58,9 @@ void checkCRUSorterMapping(std::string basePath, int partition)
   for (int fec = 0; fec < FECmax; ++fec) {
     std::stringstream fileToCheck;
     fileToCheck << basePath;
-    fileToCheck << "/mapping_part" << partition;
+    fileToCheck << "/mapping_region" << ((partition*2)+1);
     fileToCheck << "_fec" << std::setw(2) << std::setfill('0') << fec;
-    fileToCheck << "_h.txt";
+    fileToCheck << ".txt";
     inFiles_h.emplace_back(fileToCheck.str());
     if (!inFiles_h.back().is_open()) {
       std::cout << "Can't open file " << fileToCheck.str() << std::endl;
