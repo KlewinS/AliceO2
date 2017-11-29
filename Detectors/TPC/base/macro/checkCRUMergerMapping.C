@@ -27,7 +27,7 @@ gSystem->AddIncludePath("-I$O2_ROOT/include -I$FAIRROOT_ROOT/include");
 
 using namespace o2::TPC;
 
-void checkCRUSorterMapping(std::string basePath, int partition)
+void checkCRUMergerMapping(std::string basePath, int partition)
 {
   if (partition > 4 || partition < 0) {
     std::cout << "Error: Valid partitions are only from 0 to 4." << std::endl;
@@ -38,20 +38,18 @@ void checkCRUSorterMapping(std::string basePath, int partition)
   const PartitionInfo& partitionInfo = mapper.getPartitionInfo(partition);
   int FECmax = partitionInfo.getNumberOfFECs();
 
-  std::cout << "####################################" << std::endl;
-  std::cout << "## Checking partition " << partition << "           ##" << std::endl;
-  std::cout << "##                                ##" << std::endl;
-  std::cout << "## Opening files for FECs 0 to " << FECmax-1 << " ##" << std::endl;
-  std::cout << "## of region " << partition*2 << " and " << (partition*2+1) << "              ##" << std::endl;
-  std::cout << "####################################" << std::endl << std::endl;
+  std::cout << "######################################" << std::endl;
+  std::cout << "## Checking partition " << partition << "             ##" << std::endl;
+  std::cout << "##                                  ##" << std::endl;
+  std::cout << "## Opening files for region " << partition*2 << " and " << (partition*2+1) << " ##" << std::endl;
+  std::cout << "######################################" << std::endl << std::endl;
 
   std::vector<std::ifstream> inFiles_l;
   std::vector<std::ifstream> inFiles_h;
   for (int fec = 0; fec < FECmax; ++fec) {
     std::stringstream fileToCheck;
     fileToCheck << basePath;
-    fileToCheck << "/mapping_region" << (partition*2);
-    fileToCheck << "_fec" << std::setw(2) << std::setfill('0') << fec;
+    fileToCheck << "/merger_mapping_region" << (partition*2);
     fileToCheck << ".txt";
     inFiles_l.emplace_back(fileToCheck.str());
     if (!inFiles_l.back().is_open()) {
@@ -63,8 +61,7 @@ void checkCRUSorterMapping(std::string basePath, int partition)
   for (int fec = 0; fec < FECmax; ++fec) {
     std::stringstream fileToCheck;
     fileToCheck << basePath;
-    fileToCheck << "/mapping_region" << ((partition*2)+1);
-    fileToCheck << "_fec" << std::setw(2) << std::setfill('0') << fec;
+    fileToCheck << "/merger_mapping_region" << ((partition*2)+1);
     fileToCheck << ".txt";
     inFiles_h.emplace_back(fileToCheck.str());
     if (!inFiles_h.back().is_open()) {
@@ -131,6 +128,14 @@ void checkCRUSorterMapping(std::string basePath, int partition)
           ++errorsFound;
           std::cout << "ERROR: missmatch for pad [" << pad << "] in row [" << row << "] (FEC " << static_cast<unsigned>(fecInfo.getIndex()) << "), "
                     << "FEC channel should be [" << fecChannel << "] but is [" << allChannels[row]->at(pad) << "]."
+                    << std::endl;
+      }
+    }
+    for (int pad = mapper.getNumberOfPadsInRowPartition(partition,row); pad < 138; ++pad) {
+      if (allChannels[row]->at(pad) != 0) {
+          ++errorsFound;
+          std::cout << "ERROR: missmatch for pad [" << pad << "] in row [" << row << "], "
+                    << "content should be [0] but is [" << allChannels[row]->at(pad) << "]."
                     << std::endl;
       }
     }
