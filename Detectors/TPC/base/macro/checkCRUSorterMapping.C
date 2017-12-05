@@ -114,31 +114,52 @@ void checkCRUSorterMapping(std::string basePath, int partition)
 
   unsigned errorsFound = 0;
   unsigned padOffset = 0;
+  char fecIdOffset = 0;
   for (short p=0; p < partition; ++p) {
     const PartitionInfo& partInfo = mapper.getPartitionInfo(p);
     padOffset += partInfo.getNumberOfPads();
+    fecIdOffset += partInfo.getNumberOfFECs();
   }
 
+  unsigned checkedValues = 0;
   for (int row = 0; row < mapper.getNumberOfRowsPartition(partition); ++row) {
-//    std::cout << "Row " << row << ": " << std::endl;
-    for (int pad = 0; pad < mapper.getNumberOfPadsInRowPartition(partition,row); ++pad) {
-      const FECInfo& fecInfo = mapper.fecInfo(padOffset+mapper.getPadNumberInPartition(partition,row,pad));
+    char lastFecId = fecIdOffset;
+    int realPad = 0;
+    for (int pad = 0; pad < FECmax*7; ++pad) {
+      const FECInfo& fecInfo = mapper.fecInfo(padOffset+mapper.getPadNumberInPartition(partition,row,realPad));
+      if (lastFecId != fecInfo.getIndex()) {
+        if (pad%7 == 0) {
+          lastFecId = fecInfo.getIndex();
+        }
+        else {
+          if (allChannels[row]->at(pad) != 0) {
+            ++errorsFound;
+            std::cout << "ERROR: missmatch for pad [" << pad << "] in row [" << row << "],"
+                      << "FEC channel should be [" << 0 << "] but is [" << allChannels[row]->at(pad) << "]."
+                      << std::endl;
+          } else {
+            ++checkedValues;
+          }
+          continue;
+        }
+      }
       const int fecChannel = fecInfo.getSampaChip()*32 + fecInfo.getSampaChannel();
-//      std::cout << mapper.getPadNumberInPartition(partition,row,pad) << " ";
-//      std::cout << fecChannel << " ";
 
       if (fecChannel != allChannels[row]->at(pad)) {
           ++errorsFound;
-          std::cout << "ERROR: missmatch for pad [" << pad << "] in row [" << row << "] (FEC " << static_cast<unsigned>(fecInfo.getIndex()) << "), "
+          std::cout << "ERROR: missmatch for pad [" << realPad << "] in row [" << row << "] (FEC " << static_cast<unsigned>(fecInfo.getIndex()) << "), "
                     << "FEC channel should be [" << fecChannel << "] but is [" << allChannels[row]->at(pad) << "]."
                     << std::endl;
+      } else {
+        ++checkedValues;
       }
+      ++realPad;
+      lastFecId = fecInfo.getIndex();
     }
-//    std::cout << std::endl;
   }
 
   if (errorsFound == 0) {
-    std::cout << "Mapping files are good, no errors found." << std::endl;
+    std::cout << "Mapping files are good, no errors found in " << checkedValues << " checked pads."  << std::endl;
   }
   std::cout << std::endl;
 

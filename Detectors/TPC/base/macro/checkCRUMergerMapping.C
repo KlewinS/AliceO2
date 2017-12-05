@@ -116,6 +116,7 @@ void checkCRUMergerMapping(std::string basePath, int partition)
     padOffset += partInfo.getNumberOfPads();
   }
 
+  unsigned checkedValues = 0;
   for (int row = 0; row < mapper.getNumberOfRowsPartition(partition); ++row) {
 //    std::cout << "Row " << row << ": " << std::endl;
     for (int pad = 0; pad < mapper.getNumberOfPadsInRowPartition(partition,row); ++pad) {
@@ -129,6 +130,8 @@ void checkCRUMergerMapping(std::string basePath, int partition)
           std::cout << "ERROR: missmatch for pad [" << pad << "] in row [" << row << "] (FEC " << static_cast<unsigned>(fecInfo.getIndex()) << "), "
                     << "FEC channel should be [" << fecChannel << "] but is [" << allChannels[row]->at(pad) << "]."
                     << std::endl;
+      } else {
+        ++checkedValues;
       }
     }
     for (int pad = mapper.getNumberOfPadsInRowPartition(partition,row); pad < 138; ++pad) {
@@ -137,13 +140,15 @@ void checkCRUMergerMapping(std::string basePath, int partition)
           std::cout << "ERROR: missmatch for pad [" << pad << "] in row [" << row << "], "
                     << "content should be [0] but is [" << allChannels[row]->at(pad) << "]."
                     << std::endl;
+      } else {
+        ++checkedValues;
       }
     }
 //    std::cout << std::endl;
   }
 
   if (errorsFound == 0) {
-    std::cout << "Mapping files are good, no errors found." << std::endl;
+    std::cout << "Mapping files are good, no errors found in " << checkedValues << " checked pads." << std::endl;
   }
   std::cout << std::endl;
 
