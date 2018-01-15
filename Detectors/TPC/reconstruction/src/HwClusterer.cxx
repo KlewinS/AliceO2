@@ -18,6 +18,7 @@
 #include "TPCBase/CRU.h"
 #include "TPCBase/PadSecPos.h"
 #include "TPCBase/CalArray.h"
+#include "DataFormatsTPC/ClusterHardware.h"
 
 #include "FairLogger.h"
 #include "TMath.h"
@@ -30,7 +31,8 @@ std::mutex g_display_mutex;
 using namespace o2::TPC;
 
 //________________________________________________________________________
-HwClusterer::HwClusterer(std::vector<o2::TPC::Cluster> *clusterOutput,
+template <typename ClusterOutputFormat>
+HwClusterer<ClusterOutputFormat>::HwClusterer(std::vector<ClusterOutputFormat> *clusterOutput,
     MCLabelContainer *labelOutput, int cruMin, int cruMax,
     float minQDiff, bool assignChargeUnique, bool enableNoiseSim,
     bool enablePedestalSubtraction, int padsPerCF, int timebinsPerCF,
@@ -61,7 +63,8 @@ HwClusterer::HwClusterer(std::vector<o2::TPC::Cluster> *clusterOutput,
   /*
    * initialize all cluster finder
    */
-  unsigned iCfPerRow = (unsigned)ceil((double)(mPadsMax+2+2)/(static_cast<int>(mPadsPerCF)-2-2));
+  unsigned iCfPerRow = static_cast<unsigned>(ceil(static_cast<float>(mPadsMax)/(static_cast<int>(mPadsPerCF)-2-2)));
+  LOG(DEBUG) << "With " << mPadsMax << " pads per row and " << mPadsPerCF << " pads per CF, " << iCfPerRow << " CF instances are needed per row." << FairLogger::endl;
   mClusterFinder.resize(mCRUMax+1);
   const Mapper& mapper = Mapper::instance();
   for (unsigned iCRU = mCRUMin; iCRU <= mCRUMax; ++iCRU){
@@ -107,15 +110,8 @@ HwClusterer::HwClusterer(std::vector<o2::TPC::Cluster> *clusterOutput,
 }
 
 //________________________________________________________________________
-HwClusterer::~HwClusterer()
-{
-  LOG(DEBUG) << "Enter Destructor of HwClusterer" << FairLogger::endl;
-
-//  delete mLastMcDigitTruth;
-}
-
-//________________________________________________________________________
-void HwClusterer::processDigits(
+template <typename ClusterOutputFormat>
+void HwClusterer<ClusterOutputFormat>::processDigits(
     const std::vector<std::vector<std::vector<std::tuple<Digit const*, int, int>>>>& digits,
     const std::vector<std::vector<std::vector<std::shared_ptr<HwClusterFinder>>>>& clusterFinder,
           std::vector<std::vector<Cluster>>& cluster,
@@ -144,7 +140,7 @@ void HwClusterer::processDigits(
       if (config.iEnableNoiseSim && config.iNoiseObject != nullptr) {
         for (t=timeDiff; t--;) {
           for (p=config.iMaxPads; p--;) {
-            iAllBins[t][p].charge = config.iNoiseObject->getValue(CRU(iCRU),iRow,p);
+            iAllBins[t][p].charge = config.iNoiseObject->getValue(CRU(iCRU),iRow,p-2);
             iAllBins[t][p].index = -1;
             iAllBins[t][p].event = -1;
           }
@@ -180,13 +176,17 @@ void HwClusterer::processDigits(
       const unsigned iTimebinsPerCF = static_cast<const unsigned>(clusterFinder[iCRU][iRow][0]->getNtimebins());
       std::vector<std::vector<std::shared_ptr<HwClusterFinder>>::const_reverse_iterator> cfWithCluster;
       int time;
-      unsigned pad;
       for (time = 0; time < timeDiff; ++time){    // ordering important!!
-        for (pad = 0; pad < config.iMaxPads; pad = pad + (iPadsPerCF -2 -2 )) {
-          const Short_t cf = pad / (iPadsPerCF-2-2);
-          clusterFinder[iCRU][iRow][cf]->addTimebin(iAllBins[time].begin()+pad,time+config.iMinTimeBin,(config.iMaxPads-pad)>=iPadsPerCF?iPadsPerCF:(config.iMaxPads-pad));
+        unsigned pad = 0;
+        for (auto &cf : clusterFinder[iCRU][iRow]) {
+          unsigned short length = iPadsPerCF;
+          if (pad + iPadsPerCF >= config.iMaxPads) length = config.iMaxPads-pad;
+          cf->addTimebin(
+              iAllBins[time].begin()+pad,
+              time+config.iMinTimeBin,
+              length);
+          pad += (iPadsPerCF -2 -2);
         }
-
         /*
          * search for clusters and store reference to CF if one was found
          */
@@ -255,7 +255,8 @@ void HwClusterer::processDigits(
 }
 
 //________________________________________________________________________
-void HwClusterer::Process(std::vector<o2::TPC::Digit> const &digits, MCLabelContainer const* mcDigitTruth, int eventCount)
+template <typename ClusterOutputFormat>
+void HwClusterer<ClusterOutputFormat>::Process(std::vector<o2::TPC::Digit> const &digits, MCLabelContainer const* mcDigitTruth, int eventCount)
 {
   mClusterArray->clear();
   if(mClusterMcLabelArray) mClusterMcLabelArray->clear();
@@ -319,7 +320,8 @@ void HwClusterer::Process(std::vector<o2::TPC::Digit> const &digits, MCLabelCont
 }
 
 //________________________________________________________________________
-void HwClusterer::Process(std::vector<std::unique_ptr<Digit>>& digits, MCLabelContainer const* mcDigitTruth, int eventCount)
+template <typename ClusterOutputFormat>
+void HwClusterer<ClusterOutputFormat>::Process(std::vector<std::unique_ptr<Digit>>& digits, MCLabelContainer const* mcDigitTruth, int eventCount)
 {
   mClusterArray->clear();
   if(mClusterMcLabelArray) mClusterMcLabelArray->clear();
@@ -380,7 +382,8 @@ void HwClusterer::Process(std::vector<std::unique_ptr<Digit>>& digits, MCLabelCo
   LOG(DEBUG) << "Event ranged from time bin " << iTimeBinMin << " to " << iTimeBinMax << "." << FairLogger::endl;
 }
 
-void HwClusterer::ProcessTimeBins(int iTimeBinMin, int iTimeBinMax)
+template <typename ClusterOutputFormat>
+void HwClusterer<ClusterOutputFormat>::ProcessTimeBins(int iTimeBinMin, int iTimeBinMax)
 {
 
    /*
@@ -390,13 +393,15 @@ void HwClusterer::ProcessTimeBins(int iTimeBinMin, int iTimeBinMax)
 
   LOG(DEBUG) << "Starting " << mNumThreads << " threads, hardware supports " << std::thread::hardware_concurrency() << " parallel threads." << FairLogger::endl;
 
+  unsigned iCfPerRow = static_cast<unsigned>(ceil(static_cast<float>(mPadsMax)/(static_cast<int>(mPadsPerCF)-2-2)));
+  unsigned numPads = (iCfPerRow * (mPadsPerCF-2-2)) +2 +2;
   for (unsigned threadId = 0; threadId < std::min(mNumThreads,mCRUMax); ++threadId) {
     struct CfConfig cfConfig = {
       threadId,
       mNumThreads,
       mCRUMin,
       mCRUMax,
-      static_cast<unsigned>(mPadsMax)+2+2,
+      numPads,
       iTimeBinMin,
       iTimeBinMax,
       mEnableNoiseSim,
@@ -424,6 +429,16 @@ void HwClusterer::ProcessTimeBins(int iTimeBinMin, int iTimeBinMax)
   }
 
   /*
+   * combine clusters from individual thread to one output container
+   */
+  combineClusters(mClusterArray);
+
+  mLastTimebin = iTimeBinMax;
+}
+
+template <typename ClusterOutputFormat>
+void HwClusterer<ClusterOutputFormat>::combineClusters(std::vector<o2::TPC::Cluster>* clusterArray) {
+  /*
    * collect clusters from individual cluster finder
    */
 
@@ -441,14 +456,14 @@ void HwClusterer::ProcessTimeBins(int iTimeBinMin, int iTimeBinMax)
 
     // for each found cluster
     for(unsigned c = 0; c < clustersFromCRU->size(); ++c) {
-      const auto clusterPos = mClusterArray->size();
-      mClusterArray->emplace_back(clustersFromCRU->at(c));
+      const auto clusterPos = clusterArray->size();
+      clusterArray->push_back((*clustersFromCRU)[c]);
       if (mClusterMcLabelArray == nullptr) continue;
       labelCount.clear();
       labelSort.clear();
 
       // for each used digit
-      for (auto &digitIndex : labelsFromCRU->at(c)) {
+      for (auto &digitIndex : (*labelsFromCRU)[c]) {
         if (digitIndex.first < 0) continue;
         for (auto &l : mLastMcDigitTruth[digitIndex.second]->getLabels(digitIndex.first)) {
           labelCount[l]++;
@@ -458,11 +473,97 @@ void HwClusterer::ProcessTimeBins(int iTimeBinMin, int iTimeBinMax)
       for (auto &l : labelSort) mClusterMcLabelArray->addElement(clusterPos,l.first);
     }
   }
-
-  mLastTimebin = iTimeBinMax;
 }
 
-void HwClusterer::setNumThreads(unsigned threads) {
+template <typename ClusterOutputFormat>
+template <unsigned int size>
+void HwClusterer<ClusterOutputFormat>::combineClusters(std::vector<o2::DataFormat::TPC::ClusterHardwareContainerFixedSize<size>>* clusterArray) {
+  /*
+   * collect clusters from individual cluster finder
+   */
+
+  // map to count unique MC labels
+  std::map<MCCompLabel,int> labelCount;
+
+  // multiset to sort labels according to occurrence
+  auto mcComp = [](const std::pair<MCCompLabel, int>& a, const std::pair<MCCompLabel, int>& b) { return a.second > b.second;};
+  std::multiset<std::pair<MCCompLabel,int>,decltype(mcComp)> labelSort(mcComp);
+
+  unsigned clusterCount = 0;
+  // for each CRU
+  for (unsigned cru = 0; cru < mClusterStorage.size(); ++cru) {
+    std::vector<Cluster>* clustersFromCRU = &mClusterStorage[cru];
+    std::vector<std::vector<std::pair<int,int>>>* labelsFromCRU = &mClusterDigitIndexStorage[cru];
+
+    // Prepare first cluster container
+    unsigned usedContainer = 1;
+    clusterArray->emplace_back();
+    o2::DataFormat::TPC::ClusterHardwareContainer* clusterContainer = clusterArray->back().getContainer();
+    clusterContainer->CRU = cru;
+    clusterContainer->numberOfClusters = 0;
+    clusterContainer->timeBinOffset = 0xFFFFFFFF;
+
+    // Find smallest time offset in all clusters (of this cru)
+    for(unsigned c = 0; c < clustersFromCRU->size(); ++c) {
+      const auto& cluster = (*clustersFromCRU)[c];
+      if (cluster.getTimeMean() < clusterContainer->timeBinOffset) clusterContainer->timeBinOffset = cluster.getTimeMean();
+    }
+
+    // Add cluster to container
+    for(unsigned c = 0; c < clustersFromCRU->size(); ++c) {
+
+      // If current container is full, add another one
+      if (clusterContainer->numberOfClusters == clusterArray->back().getMaxNumberOfClusters()) {
+        const float timeOffset = clusterContainer->timeBinOffset;
+        clusterArray->emplace_back();
+
+        clusterContainer = clusterArray->back().getContainer();
+        clusterContainer->CRU = cru;
+        clusterContainer->numberOfClusters = 0;
+        clusterContainer->timeBinOffset = timeOffset;
+
+        ++usedContainer;
+      }
+
+      // Compute the cluster properties of the type o2::DataFormat::TPC::ClusterHardware
+      const auto& cluster = (*clustersFromCRU)[c];
+      o2::DataFormat::TPC::ClusterHardware& oCluster = clusterContainer->clusters[clusterContainer->numberOfClusters++];
+      oCluster.qMax = cluster.getQmax() + 0.5;
+      oCluster.qTot = cluster.getQ() + 0.5;
+      oCluster.padPre = cluster.getPadMean() * oCluster.qTot;
+      oCluster.timePre = (cluster.getTimeMean() - clusterContainer->timeBinOffset) * oCluster.qTot;
+      oCluster.sigmaPad2Pre = cluster.getPadSigma() * cluster.getPadSigma() * oCluster.qTot * oCluster.qTot + oCluster.padPre * oCluster.padPre;
+      oCluster.sigmaTime2Pre = cluster.getTimeSigma() * cluster.getTimeSigma() * oCluster.qTot * oCluster.qTot + oCluster.timePre * oCluster.timePre;
+      oCluster.row = cluster.getRow();
+      oCluster.flags = 0;
+
+      // Write MC labels
+      if (mClusterMcLabelArray == nullptr) continue;
+      labelCount.clear();
+      labelSort.clear();
+
+      for (auto &digitIndex : (*labelsFromCRU)[c]) {
+        if (digitIndex.first < 0) continue;
+        for (auto &l : mLastMcDigitTruth[digitIndex.second]->getLabels(digitIndex.first)) {
+          labelCount[l]++;
+        }
+      }
+      for (auto &l : labelCount) labelSort.insert(l);
+      for (auto &l : labelSort) mClusterMcLabelArray->addElement(clusterCount,l.first);
+    ++clusterCount;
+    }
+
+    if (usedContainer != 1) {
+        LOG(DEBUG) << usedContainer << " cluster container were used for CRU " << cru << FairLogger::endl;
+    }
+  }
+
+}
+
+template <typename ClusterOutputFormat>
+void HwClusterer<ClusterOutputFormat>::setNumThreads(unsigned threads) {
   mNumThreads = (threads == 0) ? std::thread::hardware_concurrency() : threads;
 }
 
+template class HwClusterer<o2::TPC::Cluster>;
+template class HwClusterer<o2::DataFormat::TPC::ClusterHardwareContainer8kb>;

@@ -25,12 +25,14 @@
 #include "TPCReconstruction/HwClusterer.h"      // for Clusterer
 #include "SimulationDataFormat/MCTruthContainer.h"
 #include "SimulationDataFormat/MCCompLabel.h"
+#include "DataFormatsTPC/Helpers.h"
 #include <vector>
 #include <memory>
 
 namespace o2 {
 namespace TPC{
 
+template <typename ClusterOutputFormat>
 class ClustererTask : public FairTask{
 
   using MCLabelContainer = o2::dataformats::MCTruthContainer<o2::MCCompLabel>;
@@ -80,20 +82,24 @@ class ClustererTask : public FairTask{
     
     /// Returns pointer to Hw Clusterer
     /// \return  Pointer to Clusterer, nullptr if Clusterer was not enabled during Init()
-    HwClusterer* getHwClusterer()     const { return mHwClusterer.get(); };
+    HwClusterer<ClusterOutputFormat>* getHwClusterer()     const { return mHwClusterer.get(); };
 
-  /// Switch for triggered / continuous readout
-  /// \param isContinuous - false for triggered readout, true for continuous readout
-  void setContinuousReadout(bool isContinuous);
+    /// Switch for triggered / continuous readout
+    /// \param isContinuous - false for triggered readout, true for continuous readout
+    void setContinuousReadout(bool isContinuous);
 
   private:
+    unsigned countCluster(std::vector<o2::TPC::Cluster>* clusterArray);
+    template <unsigned int size>
+      unsigned countCluster(std::vector<o2::DataFormat::TPC::ClusterHardwareContainerFixedSize<size>>* clusterArray);
+
     bool mBoxClustererEnable;   ///< Switch to enable Box Clusterfinder
     bool mHwClustererEnable;    ///< Switch to enable Hw Clusterfinder
     bool mIsContinuousReadout;  ///< Switch for continuous readout
     int mEventCount;            ///< Event counter
 
     std::unique_ptr<BoxClusterer> mBoxClusterer;    ///< Box Clusterfinder instance
-    std::unique_ptr<HwClusterer> mHwClusterer;      ///< Hw Clusterfinder instance
+    std::unique_ptr<HwClusterer<ClusterOutputFormat>> mHwClusterer;      ///< Hw Clusterfinder instance
 
     // Digit arrays
     std::vector<o2::TPC::Digit> const *mDigitsArray;    ///< Array of TPC digits
@@ -101,15 +107,28 @@ class ClustererTask : public FairTask{
 
     // Cluster arrays
     std::vector<o2::TPC::Cluster> *mClustersArray;              ///< Array of clusters found by Box Clusterfinder
-    std::vector<o2::TPC::Cluster> *mHwClustersArray;            ///< Array of clusters found by Hw Clusterfinder
+    std::vector<ClusterOutputFormat> *mHwClustersArray;            ///< Array of clusters found by Hw Clusterfinder
     std::unique_ptr<MCLabelContainer> mClustersMCTruthArray;      ///< Array for MCTruth information associated to cluster in mClustersArrays
     std::unique_ptr<MCLabelContainer> mHwClustersMCTruthArray;    ///< Array for MCTruth information associated to cluster in mHwClustersArrays
 
     ClassDefOverride(ClustererTask, 1)
 };
 
-inline
-void ClustererTask::setContinuousReadout(bool isContinuous)
+template <typename ClusterOutputFormat>
+inline unsigned ClustererTask<ClusterOutputFormat>::countCluster(std::vector<o2::TPC::Cluster>* clusterArray) {
+  return clusterArray->size();
+}
+
+template <typename ClusterOutputFormat>
+template <unsigned int size>
+inline unsigned ClustererTask<ClusterOutputFormat>::countCluster(std::vector<o2::DataFormat::TPC::ClusterHardwareContainerFixedSize<size>>* clusterArray) {
+  unsigned count = 0;
+  for (auto &cont : *clusterArray) count += cont.getContainer()->numberOfClusters;
+  return count;
+}
+
+template <typename ClusterOutputFormat>
+inline void ClustererTask<ClusterOutputFormat>::setContinuousReadout(bool isContinuous)
 {
   mIsContinuousReadout = isContinuous;
 }

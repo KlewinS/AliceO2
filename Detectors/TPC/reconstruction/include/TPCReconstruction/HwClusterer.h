@@ -20,6 +20,7 @@
 
 #include "SimulationDataFormat/MCTruthContainer.h"
 #include "SimulationDataFormat/MCCompLabel.h"
+#include "DataFormatsTPC/Helpers.h"
 
 #include <vector>
 #include <map>
@@ -30,12 +31,12 @@
 namespace o2{
 namespace TPC {
 
-class ClustererTask;
 class HwClusterFinder;
 class Digit;
 
 /// \class HwClusterer
 /// \brief Class for TPC HW cluster finding
+template <typename ClusterOutputFormat>
 class HwClusterer : public Clusterer {
 
   using MCLabelContainer = o2::dataformats::MCTruthContainer<o2::MCCompLabel>;
@@ -59,7 +60,7 @@ class HwClusterer : public Clusterer {
     /// \param requirePositiveCharge Positive charge is required
     /// \param requireNeighbouringPad Requires at least 2 adjecent pads with charge above threshold
     HwClusterer(
-        std::vector<o2::TPC::Cluster> *clusterOutput,
+        std::vector<ClusterOutputFormat> *clusterOutput,
         MCLabelContainer *labelOutput = nullptr,
         int cruMin = 0,
         int cruMax = 359,
@@ -67,8 +68,8 @@ class HwClusterer : public Clusterer {
         bool assignChargeUnique = true,//false,
         bool enableNoiseSim = true,
         bool enablePedestalSubtraction = true,
-        int padsPerCF = 8,
-        int timebinsPerCF = 8,
+        int padsPerCF = 10,
+        int timebinsPerCF = 6,
         int rowsMax = 18,
         int padsMax = 138,
         int timeBinsMax = 1024,
@@ -77,7 +78,7 @@ class HwClusterer : public Clusterer {
         bool requireNeighbouringPad = true);
 
     /// Destructor
-    ~HwClusterer() override;
+    ~HwClusterer() = default;
 
     /// Steer conversion of points to digits
     /// @param digits Container with TPC digits
@@ -96,9 +97,9 @@ class HwClusterer : public Clusterer {
     /// Setter for pedestal object, pedestal value will be subtracted before cluster finding
     /// \param pedestalObject CalDet object, containing pedestals for each pad
     void setPedestalObject(std::shared_ptr<CalDet<float>> pedestalObject) { mPedestalObject = pedestalObject; };
-    void setPedestalObject(CalDet<float>* pedestalObject) { 
-      LOG(DEBUG) << "Consider using std::shared_ptr for the pedestal object." << FairLogger::endl; 
-      mPedestalObject = std::shared_ptr<CalDet<float>>(pedestalObject); 
+    void setPedestalObject(CalDet<float>* pedestalObject) {
+      LOG(DEBUG) << "Consider using std::shared_ptr for the pedestal object." << FairLogger::endl;
+      mPedestalObject = std::shared_ptr<CalDet<float>>(pedestalObject);
     };
 
     /// Switch for triggered / continuous readout
@@ -154,6 +155,12 @@ class HwClusterer : public Clusterer {
     /// \param iTimeBinMax Maximum time bin to be processed
     void ProcessTimeBins(int iTimeBinMin, int iTimeBinMax);
 
+    /// Helper functions to combine individual CF outputs into one cluster array
+    /// \param clusterArray Array to store Clusters in
+    void combineClusters(std::vector<o2::TPC::Cluster>* clusterArray);
+    template <unsigned int size>
+      void combineClusters(std::vector<o2::DataFormat::TPC::ClusterHardwareContainerFixedSize<size>>* clusterArray);
+
     /*
      * class members
      */
@@ -175,8 +182,8 @@ class HwClusterer : public Clusterer {
     std::vector<std::vector<Cluster>> mClusterStorage;                                          ///< Cluster storage for each CRU
     std::vector<std::vector<std::vector<std::pair<int,int>>>> mClusterDigitIndexStorage;        ///< Container for digit indices, used in found clusters. Pair consists of original digit index and event count
 
-    std::vector<Cluster>* mClusterArray;        ///< Pointer to output cluster storage
-    MCLabelContainer* mClusterMcLabelArray;     ///< Pointer to MC Label storage
+    std::vector<ClusterOutputFormat>* mClusterArray;        ///< Pointer to output cluster storage
+    MCLabelContainer* mClusterMcLabelArray;                 ///< Pointer to MC Label storage
 
     std::shared_ptr<CalDet<float>> mNoiseObject;                ///< Pointer to the CalDet object for noise simulation
     std::shared_ptr<CalDet<float>> mPedestalObject;             ///< Pointer to the CalDet object for the pedestal subtraction

@@ -14,6 +14,10 @@
   #include "FairParRootFileIo.h"
 
   #include "TPCReconstruction/ClustererTask.h"
+  #include "DataFormatsTPC/Helpers.h"
+#else
+R__LOAD_LIBRARY(libTPCReconstruction)
+R__LOAD_LIBRARY(libDataFormatsTPC)
 #endif
 void run_clus_tpc(Int_t nEvents = 10, TString mcEngine = "TGeant3", bool isContinuous=true, unsigned threads = 0)
 {
@@ -46,10 +50,11 @@ void run_clus_tpc(Int_t nEvents = 10, TString mcEngine = "TGeant3", bool isConti
   TGeoManager::Import("geofile_full.root");
 
   // Setup clusterer
-  o2::TPC::ClustererTask *clustTPC = new o2::TPC::ClustererTask();
+  using ClusterOutputFormat = /*o2::TPC::Cluster;*/o2::DataFormat::TPC::ClusterHardwareContainer8kb;
+  o2::TPC::ClustererTask<ClusterOutputFormat> *clustTPC = new o2::TPC::ClustererTask<ClusterOutputFormat>();
   clustTPC->setContinuousReadout(isContinuous);
-  clustTPC->setClustererEnable(o2::TPC::ClustererTask::ClustererType::Box,false);
-  clustTPC->setClustererEnable(o2::TPC::ClustererTask::ClustererType::HW,true);
+  clustTPC->setClustererEnable(o2::TPC::ClustererTask<ClusterOutputFormat>::ClustererType::Box,false);
+  clustTPC->setClustererEnable(o2::TPC::ClustererTask<ClusterOutputFormat>::ClustererType::HW,true);
 
   run->AddTask(clustTPC);
 

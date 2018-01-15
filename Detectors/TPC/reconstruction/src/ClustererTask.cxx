@@ -22,12 +22,13 @@
 #include "FairLogger.h"          // for LOG
 #include "FairRootManager.h"     // for FairRootManager
 
-ClassImp(o2::TPC::ClustererTask);
+templateClassImp(o2::TPC::ClustererTask);
 
 using namespace o2::TPC;
 
 //_____________________________________________________________________
-ClustererTask::ClustererTask()
+template <typename ClusterOutputFormat>
+ClustererTask<ClusterOutputFormat>::ClustererTask()
   : FairTask("TPCClustererTask")
   , mBoxClustererEnable(false)
   , mHwClustererEnable(false)
@@ -45,7 +46,8 @@ ClustererTask::ClustererTask()
 }
 
 //_____________________________________________________________________
-ClustererTask::~ClustererTask()
+template <typename ClusterOutputFormat>
+ClustererTask<ClusterOutputFormat>::~ClustererTask()
 {
   LOG(DEBUG) << "Enter Destructor of ClustererTask" << FairLogger::endl;
 
@@ -59,7 +61,8 @@ ClustererTask::~ClustererTask()
 //_____________________________________________________________________
 /// \brief Init function
 /// Inititializes the clusterer and connects input and output container
-InitStatus ClustererTask::Init()
+template <typename ClusterOutputFormat>
+InitStatus ClustererTask<ClusterOutputFormat>::Init()
 {
   LOG(DEBUG) << "Enter Initializer of ClustererTask" << FairLogger::endl;
 
@@ -100,7 +103,8 @@ InitStatus ClustererTask::Init()
 
   if (mHwClustererEnable) {
     // Register output container
-    mHwClustersArray = new std::vector<o2::TPC::Cluster>;
+    mHwClustersArray = new std::vector<ClusterOutputFormat>;
+    mHwClustersArray->reserve(1024);
     mgr->RegisterAny("TPCClusterHW", mHwClustersArray, kTRUE);
 
     // Register MC Truth output container
@@ -110,7 +114,7 @@ InitStatus ClustererTask::Init()
     mgr->RegisterAny("TPCClusterHWMCTruth", tmp, kTRUE);
 
      // create clusterer and pass output pointer
-    mHwClusterer = std::make_unique<HwClusterer>(mHwClustersArray,mHwClustersMCTruthArray.get());//,0,359);
+    mHwClusterer = std::make_unique<HwClusterer<ClusterOutputFormat>>(mHwClustersArray,mHwClustersMCTruthArray.get());//,0,359);
     mHwClusterer->setContinuousReadout(mIsContinuousReadout);
 // TODO: implement noise/pedestal objecta
 //    mHwClusterer->setNoiseObject();
@@ -121,7 +125,8 @@ InitStatus ClustererTask::Init()
 }
 
 //_____________________________________________________________________
-void ClustererTask::Exec(Option_t *option)
+template <typename ClusterOutputFormat>
+void ClustererTask<ClusterOutputFormat>::Exec(Option_t *option)
 {
   LOG(DEBUG) << "Running clusterization on new event with " << mDigitsArray->size() << " digits" << FairLogger::endl;
 
@@ -136,7 +141,10 @@ void ClustererTask::Exec(Option_t *option)
     if(mHwClustersArray) mHwClustersArray->clear();
     if(mHwClustersMCTruthArray) mHwClustersMCTruthArray->clear();
     mHwClusterer->Process(*mDigitsArray,mDigitMCTruthArray,mEventCount);
-    LOG(DEBUG) << "Hw clusterer found " << mHwClustersArray->size() << " clusters" << FairLogger::endl << FairLogger::endl;
+    LOG(DEBUG) << "Hw clusterer found " << countCluster(mHwClustersArray) << " clusters" << FairLogger::endl << FairLogger::endl;
   }
   ++mEventCount;
 }
+
+template class ClustererTask<o2::TPC::Cluster>;
+template class ClustererTask<o2::DataFormat::TPC::ClusterHardwareContainer8kb>;

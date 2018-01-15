@@ -36,16 +36,16 @@ class ClusterTimeStamp {
   float mTimeStampError = 0.f;
   ClassDefNV(ClusterTimeStamp, 1);
 };
-  
+
 /// \class Cluster
 /// \brief Cluster class for the TPC
 ///
 class Cluster : public ClusterTimeStamp {
   public:
-    
+
     /// Default constructor
     Cluster();
-    
+
     /// Constructor, initializing all values
     /// \param cru CRU
     /// \param row Row
@@ -55,9 +55,9 @@ class Cluster : public ClusterTimeStamp {
     /// \param padsigma Sigma of cluster in pad direction
     /// \param timemean Mean position of cluster in time direction
     /// \param timesigma Sigma of cluster in time direction
-    Cluster(short cru, short row, float q, float qmax, 
+    Cluster(short cru, short row, float q, float qmax,
         float padmean, float padsigma, float timemean, float timesigma);
-    
+
     /// Destructor
     ~Cluster() = default;
 
@@ -73,9 +73,9 @@ class Cluster : public ClusterTimeStamp {
     /// \param padsigma Sigma of cluster in pad direction
     /// \param timemean Mean position of cluster in time direction
     /// \param timesigma Sigma of cluster in time direction
-    void setParameters(short cru, short row, float q, float qmax, 
+    void setParameters(short cru, short row, float q, float qmax,
         float padmean, float padsigma, float timemean, float timesigma);
-          
+
     int getCRU() const { return mCRU; }
     int getRow() const { return mRow; }
     float getQ() const { return mQ; }
@@ -84,15 +84,15 @@ class Cluster : public ClusterTimeStamp {
     float getTimeMean() const { return getTimeStamp(); }
     float getPadSigma() const { return mPadSigma; }
     float getTimeSigma() const { return getTimeStampError(); }
-    
+
     /// Print function: Print basic digit information on the  output stream
     /// \param output Stream to put the digit on
     /// \return The output stream
-    friend std::ostream& operator<< (std::ostream& out, const Cluster &c) { return c.print(out); }; 
+    friend std::ostream& operator<< (std::ostream& out, const Cluster &c) { return c.print(out); };
 
-  protected:      
+  protected:
     std::ostream& print(std::ostream& out) const;
-    
+
   private:
 #ifndef __CINT__
   friend class boost::serialization::access;
@@ -104,11 +104,11 @@ class Cluster : public ClusterTimeStamp {
     float   mQmax;
     float   mPadMean;
     float   mPadSigma;
-          
+
     ClassDefNV(Cluster, 1);
 };
 //________________________________________________________________________
-inline 
+inline
 Cluster::Cluster()
   : Cluster(-1, -1, -1, -1, -1, -1, -1, -1)
 {
@@ -161,4 +161,4 @@ void Cluster::setParameters(short cru, short row, float q, float qmax,
 }
 }
 
-#endif /* ALICEO2_TPC_CLUSTER_H */   
+#endif /* ALICEO2_TPC_CLUSTER_H */

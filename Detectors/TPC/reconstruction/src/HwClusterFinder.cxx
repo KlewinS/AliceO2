@@ -130,9 +130,9 @@ bool HwClusterFinder::findCluster()
   // peak finding
   //
   short t,p,tt,pp;
-  for (t=tMin; t<=tMax; ++t) {
-    for (p=pMin; p<=pMax; ++p) {
-        //printf("t:%d, p:%d\n",t,p);
+  for (p=pMin; p<=pMax; ++p) {
+    for (t=tMin; t<=tMax; ++t) {
+      //printf("t:%d, p:%d\n",t,p);
       //
       // find peak in 3x3 matrix
       //
