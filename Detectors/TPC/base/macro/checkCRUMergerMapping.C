@@ -125,20 +125,20 @@ void checkCRUMergerMapping(std::string basePath, int partition)
 //      std::cout << mapper.getPadNumberInPartition(partition,row,pad) << " ";
 //      std::cout << fecChannel << " ";
 
-      if (fecChannel != allChannels[row]->at(pad)) {
+      if (fecChannel != allChannels[row]->at(pad+2)) {  // + 2 to skip first two empty "pads"
           ++errorsFound;
           std::cout << "ERROR: missmatch for pad [" << pad << "] in row [" << row << "] (FEC " << static_cast<unsigned>(fecInfo.getIndex()) << "), "
-                    << "FEC channel should be [" << fecChannel << "] but is [" << allChannels[row]->at(pad) << "]."
+                    << "FEC channel should be [" << fecChannel << "] but is [" << allChannels[row]->at(pad+2) << "]."
                     << std::endl;
       } else {
         ++checkedValues;
       }
     }
     for (int pad = mapper.getNumberOfPadsInRowPartition(partition,row); pad < 138; ++pad) {
-      if (allChannels[row]->at(pad) != 0) {
+      if (allChannels[row]->at(pad+2) != 0) {
           ++errorsFound;
           std::cout << "ERROR: missmatch for pad [" << pad << "] in row [" << row << "], "
-                    << "content should be [0] but is [" << allChannels[row]->at(pad) << "]."
+                    << "content should be [0] but is [" << allChannels[row]->at(pad+2) << "]."
                     << std::endl;
       } else {
         ++checkedValues;
@@ -152,5 +152,9 @@ void checkCRUMergerMapping(std::string basePath, int partition)
   }
   std::cout << std::endl;
 
+}
+
+void checkCRUMergerMapping(std::string basePath) {
+  for (int p = 0; p < 5; ++p) checkCRUMergerMapping(basePath,p);
 }
 

@@ -103,7 +103,7 @@ void printCRUMergerMapping()
         if (row >= fecIDs[region].size()) continue;
         if (checkPadsEmpty(fecIDs,region,row,p)) continue;
 
-        std::cout << "            when " << region << " => row_segment <= (";
+        std::cout << "            when " << region << " => row_segments_o <= (";
         for (int i = 0; i < 6; ++i) {
           if (i != 0) std::cout << ", ";
           if (fecIDs[region][row][p-i] == -1) {
@@ -124,50 +124,6 @@ void printCRUMergerMapping()
     std::cout << "  end generate gen_row_" << row << ";" << std::endl << std::endl;
 
   }
-
-//  for (int p = (24 * 6) - 1; p >= 0; p = p - 6) {
-//    std::cout << "       when S_segment_" << p/6 << " =>" << std::endl;
-//    std::cout << "         case G_ROW_NUMBER is" << std::endl;
-//    for (int row = 0; row < 18; ++row) {
-//      if (checkRegionEmpty(fecIDs,row,p)) continue;
-//
-//      std::cout << "           when " << row << " =>" << std::endl;
-//      std::cout << "             case config.region is" << std::endl;
-//      for (int region = 0; region < 10; ++region) {
-//        if (row >= fecIDs[region].size()) continue;
-//        if (checkPadsEmpty(fecIDs,region,row,p)) continue;
-//
-//        std::cout << "               when " << region << " => row_segment <= (";
-//        for (int i = 0; i < 6; ++i) {
-//          if (i != 0) std::cout << ", ";
-//          if (fecIDs[region][row][p-i] == -1) {
-//            std::cout << 5-i << " => (others => '0')";
-//          } else {
-//            std::cout << 5-i << " => full_row(" << fecIDs[region][row][p-i] << "*7+" << padsOfFecRow[region][row][p-i] << ")";
-//          }
-//        }
-//        std::cout << ");" << std::endl;
-////        std::cout << fecIDs[region][row][p-0] << " "
-////                  << fecIDs[region][row][p-1] << " "
-////                  << fecIDs[region][row][p-2] << " "
-////                  << fecIDs[region][row][p-3] << " "
-////                  << fecIDs[region][row][p-4] << " "
-////                  << fecIDs[region][row][p-5] << std::endl;
-////
-////        std::cout << padsOfFecRow[region][row][p-0] << " "
-////                  << padsOfFecRow[region][row][p-1] << " "
-////                  << padsOfFecRow[region][row][p-2] << " "
-////                  << padsOfFecRow[region][row][p-3] << " "
-////                  << padsOfFecRow[region][row][p-4] << " "
-////                  << padsOfFecRow[region][row][p-5] << std::endl << std::endl;
-//      }
-//      std::cout << "               when others => row_segment <= (others => (others => '0'));" << std::endl;
-//      std::cout << "             end case;" << std::endl << std::endl;
-//    }
-//    std::cout << "           when others => row_segment <= (others => (others => '0'));" << std::endl;
-//    std::cout << "         end case;" << std::endl << std::endl;
-//  }
-  return;
 
 }
 
